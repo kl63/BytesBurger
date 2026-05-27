@@ -13,7 +13,8 @@ import {
   TrendingUp,
   Package,
   Loader2,
-  Clock
+  Clock,
+  ChefHat
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
@@ -537,6 +538,14 @@ export default function AdminPage() {
                 <span className="font-bold">{item.label}</span>
               </button>
             ))}
+            
+            {/* Go to Kitchen Button */}
+            <Link href="/kitchen" className="w-full">
+              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg hover:shadow-xl hover:scale-105">
+                <ChefHat className="w-5 h-5" />
+                <span className="font-bold">Go to Kitchen</span>
+              </button>
+            </Link>
           </nav>
         </motion.aside>
 
