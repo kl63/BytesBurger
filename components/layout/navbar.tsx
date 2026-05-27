@@ -1,0 +1,218 @@
+'use client'
+
+import Link from 'next/link'
+import Image from 'next/image'
+import { ShoppingCart, Menu, User, LogOut, Gift } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useState, useEffect } from 'react'
+import { useCart } from '@/contexts/CartContext'
+import { useAuth } from '@/contexts/AuthContext'
+
+export function Navbar() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const { itemCount } = useCart()
+  const { user, signOut, isAdmin } = useAuth()
+
+  // Prevent hydration mismatch by only showing user-dependent UI after mount
+  useEffect(() => {
+    // This is the correct pattern for preventing hydration mismatch
+    // eslint-disable-next-line
+    setMounted(true)
+  }, [])
+
+  return (
+    <nav className="sticky top-0 z-50 w-full border-b border-white/10 bg-gradient-to-b from-black/80 to-black/60 backdrop-blur-md">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-20 items-center justify-between">
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center">
+              <div className="relative h-20 w-64">
+                <Image
+                  src="/logo.png"
+                  alt="ByteBurger Logo"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
+            </Link>
+
+            <div className="hidden md:flex items-center gap-6 -ml-8">
+              <Link
+                href="/"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors"
+              >
+                Home
+              </Link>
+              <Link
+                href="/menu"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors"
+              >
+                Menu
+              </Link>
+              {mounted && user && (
+                <Link
+                  href="/rewards"
+                  className="text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1"
+                >
+                  <Gift className="h-4 w-4" />
+                  Rewards
+                </Link>
+              )}
+              <Link
+                href="/about"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors"
+              >
+                About
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button asChild variant="ghost" size="icon" className="relative hidden sm:flex text-white hover:bg-white/10">
+              <Link href="/cart">
+                <ShoppingCart className="h-5 w-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-orange-500 to-red-600 text-[10px] font-bold text-white">
+                    {itemCount}
+                  </span>
+                )}
+              </Link>
+            </Button>
+
+            {user ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link href="/account" className="text-sm text-gray-300 hover:text-white transition-colors">
+                  {user.user_metadata?.full_name || user.email}
+                </Link>
+                {isAdmin && (
+                  <Link href="/admin">
+                    <span className="text-xs bg-orange-500/20 text-orange-500 px-2 py-1 rounded-full font-bold border border-orange-500/30">
+                      Admin
+                    </span>
+                  </Link>
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-white hover:bg-white/10"
+                  onClick={async () => {
+                    await signOut()
+                  }}
+                  title="Sign Out"
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </div>
+            ) : (
+              <Button asChild variant="ghost" size="icon" className="hidden sm:flex text-white hover:bg-white/10">
+                <Link href="/login">
+                  <User className="h-5 w-5" />
+                </Link>
+              </Button>
+            )}
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden text-white hover:bg-white/10"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-white/10 py-4">
+            <div className="flex flex-col gap-4">
+              <Link
+                href="/"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <Link
+                href="/menu"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Menu
+              </Link>
+              {mounted && user && (
+                <Link
+                  href="/rewards"
+                  className="text-sm font-medium text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Gift className="h-4 w-4" />
+                  Rewards
+                </Link>
+              )}
+              <Link
+                href="/about"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                About
+              </Link>
+              <div className="flex flex-col gap-2 pt-2">
+                {user ? (
+                  <>
+                    <div className="text-sm text-gray-300 py-2 px-3 bg-gray-800/50 rounded-lg">
+                      Signed in as: <span className="font-bold text-white">{user.user_metadata?.full_name || user.email}</span>
+                    </div>
+                    {isAdmin && (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                          <span className="text-orange-500">Admin Panel</span>
+                        </Link>
+                      </Button>
+                    )}
+                    <div className="flex gap-2">
+                      <Button asChild size="sm" className="flex-1">
+                        <Link href="/cart" onClick={() => setMobileMenuOpen(false)}>
+                          <ShoppingCart className="h-4 w-4 mr-2" />
+                          Cart ({itemCount})
+                        </Link>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={async () => {
+                          setMobileMenuOpen(false)
+                          await signOut()
+                        }}
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button asChild variant="outline" size="sm" className="flex-1">
+                      <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                        <User className="h-4 w-4 mr-2" />
+                        Account
+                      </Link>
+                    </Button>
+                    <Button asChild size="sm" className="flex-1">
+                      <Link href="/cart" onClick={() => setMobileMenuOpen(false)}>
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Cart ({itemCount})
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+  )
+}

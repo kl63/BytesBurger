@@ -1,0 +1,657 @@
+/**
+ * Admin database operations
+ * Functions for managing menu items, users, and stats
+ */
+
+import { createClient } from '@/lib/supabase/client'
+import type { MenuItem, MenuCategory } from '@/types'
+
+const supabase = createClient()
+
+// Global token cache - set by admin page on load
+let cachedToken: string | null = null
+
+export function setAdminToken(token: string | null) {
+  cachedToken = token
+  console.log('🔐 Admin token cached:', token ? 'Yes' : 'No')
+}
+
+// Helper to get session token from storage (faster than calling getSession)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function getStoredSessionToken(): string | null {
+  if (typeof window === 'undefined') return null
+  
+  try {
+    // Supabase stores auth in localStorage with pattern: sb-<project-ref>-auth-token
+    // Try multiple possible keys
+    const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0]
+    
+    const possibleKeys = [
+      `sb-${projectRef}-auth-token`,
+      `supabase.auth.token`,
+      `sb-auth-token`,
+    ]
+    
+    // Try exact keys first
+    for (const key of possibleKeys) {
+      const stored = localStorage.getItem(key)
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          // Supabase stores it in different formats
+          const token = parsed?.access_token || 
+                       parsed?.currentSession?.access_token ||
+                       parsed?.session?.access_token ||
+                       parsed?.data?.session?.access_token
+          if (token) {
+            console.log('✅ Found session token at key:', key)
+            return token
+          }
+        } catch {
+          // Not JSON or wrong format
+        }
+      }
+    }
+    
+    // Fallback: search all localStorage keys
+    console.log('🔍 Searching all localStorage keys...')
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key) continue
+      
+      console.log('  Checking key:', key)
+      
+      // Look for any key containing 'sb-' or 'supabase'
+      if (key.includes('sb-') || key.includes('supabase')) {
+        const value = localStorage.getItem(key)
+        if (value) {
+          try {
+            const parsed = JSON.parse(value)
+            // Look for access_token anywhere in the object
+            const token = parsed?.access_token || 
+                         parsed?.currentSession?.access_token ||
+                         parsed?.session?.access_token ||
+                         parsed?.data?.session?.access_token
+            
+            if (token && typeof token === 'string') {
+              console.log('✅ Found session token in key:', key)
+              return token
+            }
+          } catch {
+            // Not JSON
+          }
+        }
+      }
+    }
+    
+    console.log('❌ No session token found in localStorage')
+  } catch {
+    console.log('⚠️ Error reading from localStorage')
+  }
+  
+  return null
+}
+
+// Helper to get headers with auth token
+// Priority: cachedToken > providedToken (NO localStorage fallback - those tokens are expired!)
+function getAuthHeaders(providedToken?: string | null) {
+  const token = cachedToken || providedToken
+  
+  const headers: Record<string, string> = {
+    'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    'Content-Type': 'application/json'
+  }
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+    console.log('🔑 Using fresh admin session token')
+  } else {
+    headers['Authorization'] = `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+    console.log('🔓 No fresh token - using anonymous key')
+  }
+  
+  return headers
+}
+
+// Get session token from Supabase with timeout
+export async function getSessionToken(): Promise<string | null> {
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout')), 2000)
+    )
+    const sessionPromise = supabase.auth.getSession()
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await Promise.race([sessionPromise, timeoutPromise]) as any
+    return data?.session?.access_token || null
+  } catch {
+    console.log('⚠️ Could not get session token')
+    return null
+  }
+}
+
+// ============================================
+// MENU ITEMS CRUD
+// ============================================
+
+export async function getAllMenuItems() {
+  try {
+    const headers = await getAuthHeaders()
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_items?select=*,category:menu_categories(*)&order=created_at.desc`
+    
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      console.error('❌ Error fetching menu items:', response.status)
+      return []
+    }
+    
+    const data = await response.json()
+    console.log('✅ Fetched menu items:', data?.length || 0)
+    return data || []
+  } catch {
+    console.error('❌ Error in getAllMenuItems')
+    return []
+  }
+}
+
+export async function createMenuItem(item: {
+  name: string
+  description: string
+  price: number
+  category_id?: string
+  image_url?: string
+  is_popular?: boolean
+  calories?: number
+}) {
+  try {
+    console.log('📝 Creating menu item:', item)
+    
+    const headers = await getAuthHeaders()
+    headers['Prefer'] = 'return=representation'
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_items`
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(item),
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Error creating menu item:', response.status, errorText)
+      throw new Error(`Failed to create menu item: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    const newItem = Array.isArray(data) ? data[0] : data
+    console.log('✅ Menu item created:', newItem)
+    return newItem
+  } catch (error) {
+    console.error('❌ Error in createMenuItem:', error)
+    throw error
+  }
+}
+
+export async function updateMenuItem(id: string, updates: Partial<MenuItem>) {
+  try {
+    const headers = await getAuthHeaders()
+    headers['Prefer'] = 'return=representation'
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_items?id=eq.${id}`
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(updates),
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Error updating menu item:', response.status, errorText)
+      throw new Error(`Failed to update menu item: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    const updatedItem = Array.isArray(data) ? data[0] : data
+    return updatedItem
+  } catch (error) {
+    console.error('❌ Error in updateMenuItem:', error)
+    throw error
+  }
+}
+
+export async function deleteMenuItem(id: string) {
+  try {
+    const headers = await getAuthHeaders()
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_items?id=eq.${id}`
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Error deleting menu item:', response.status, errorText)
+      throw new Error(`Failed to delete menu item: ${response.status}`)
+    }
+    
+    return true
+  } catch (error) {
+    console.error('❌ Error in deleteMenuItem:', error)
+    throw error
+  }
+}
+
+// ============================================
+// STATISTICS
+// ============================================
+
+export async function getAdminStats() {
+  try {
+    const headers = await getAuthHeaders()
+    headers['Prefer'] = 'count=exact'
+
+    // Fetch all counts in parallel
+    const [menuRes, categoryRes, cartRes, ordersRes] = await Promise.all([
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_items?select=count`, {
+        headers,
+        signal: AbortSignal.timeout(5000)
+      }),
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_categories?select=count`, {
+        headers,
+        signal: AbortSignal.timeout(5000)
+      }),
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/cart_items?select=count`, {
+        headers,
+        signal: AbortSignal.timeout(5000)
+      }),
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=count`, {
+        headers,
+        signal: AbortSignal.timeout(5000)
+      })
+    ])
+
+    // Get counts from headers
+    const menuCount = parseInt(menuRes.headers.get('content-range')?.split('/')[1] || '0')
+    const categoryCount = parseInt(categoryRes.headers.get('content-range')?.split('/')[1] || '0')
+    const activeCartsCount = parseInt(cartRes.headers.get('content-range')?.split('/')[1] || '0')
+    const totalOrders = parseInt(ordersRes.headers.get('content-range')?.split('/')[1] || '0')
+
+    // Calculate total revenue (sum of all completed orders)
+    const revenueRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=total_amount&status=eq.completed`, {
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    let totalRevenue = 0
+    if (revenueRes.ok) {
+      const orders = await revenueRes.json()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      totalRevenue = orders.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0)
+    }
+
+    return {
+      menuItems: menuCount || 0,
+      categories: categoryCount || 0,
+      activeCarts: activeCartsCount || 0,
+      totalOrders: totalOrders || 0,
+      totalRevenue: totalRevenue || 0,
+    }
+  } catch {
+    console.error('Error fetching admin stats')
+    return {
+      menuItems: 0,
+      categories: 0,
+      activeCarts: 0,
+      totalOrders: 0,
+      totalRevenue: 0,
+    }
+  }
+}
+
+// ============================================
+// CATEGORIES
+// ============================================
+
+export async function getAllCategories() {
+  try {
+    const headers = await getAuthHeaders()
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_categories?select=*&order=name.asc`
+    
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      console.error('❌ Error fetching categories:', response.status)
+      return []
+    }
+    
+    const data = await response.json()
+    return data || []
+  } catch {
+    console.error('❌ Error in getAllCategories')
+    return []
+  }
+}
+
+export async function createCategory(category: {
+  name: string
+  description?: string
+}) {
+  try {
+    const headers = await getAuthHeaders()
+    headers['Prefer'] = 'return=representation'
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_categories`
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(category),
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to create category: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    return Array.isArray(data) ? data[0] : data
+  } catch (error) {
+    console.error('❌ Error in createCategory:', error)
+    throw error
+  }
+}
+
+export async function updateCategory(id: string, updates: Partial<MenuCategory>) {
+  try {
+    const headers = await getAuthHeaders()
+    headers['Prefer'] = 'return=representation'
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_categories?id=eq.${id}`
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(updates),
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update category: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    return Array.isArray(data) ? data[0] : data
+  } catch (error) {
+    console.error('❌ Error in updateCategory:', error)
+    throw error
+  }
+}
+
+export async function deleteCategory(id: string) {
+  try {
+    const headers = await getAuthHeaders()
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_categories?id=eq.${id}`
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to delete category: ${response.status}`)
+    }
+    
+    return true
+  } catch (error) {
+    console.error('❌ Error in deleteCategory:', error)
+    throw error
+  }
+}
+
+// ============================================
+// CART ANALYTICS (Admin View)
+// ============================================
+
+export async function getActiveCartsWithItems() {
+  const { data, error } = await supabase
+    .from('cart_items')
+    .select(`
+      *,
+      menu_items!cart_items_menu_item_id_fkey (
+        name,
+        price
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  if (error) {
+    console.error('Error fetching cart items:', error)
+    return []
+  }
+
+  return data || []
+}
+
+// ============================================
+// POPULAR ITEMS (Legacy - moved to analytics)
+// ============================================
+
+export async function togglePopularItem(id: string, isPopular: boolean) {
+  const { data, error } = await supabase
+    .from('menu_items')
+    .update({ is_popular: isPopular })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error toggling popular item:', error)
+    throw error
+  }
+
+  return data
+}
+
+// ============================================
+// ORDERS
+// ============================================
+
+export async function getAllOrders() {
+  try {
+    const headers = await getAuthHeaders()
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=*&order=created_at.desc`
+    
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      console.error('❌ Error fetching all orders:', response.status)
+      return []
+    }
+    
+    const data = await response.json()
+    return data || []
+  } catch {
+    console.error('❌ Error in getAllOrders')
+    return []
+  }
+}
+
+export async function updateOrderStatus(orderId: string, status: string) {
+  try {
+    const headers = await getAuthHeaders()
+    headers['Prefer'] = 'return=representation'
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update order status: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    return Array.isArray(data) ? data[0] : data
+  } catch (error) {
+    console.error('❌ Error in updateOrderStatus:', error)
+    throw error
+  }
+}
+
+// ============================================
+// ANALYTICS
+// ============================================
+
+export async function getRevenueByDate(days: number = 7) {
+  try {
+    const headers = getAuthHeaders()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?status=eq.completed&created_at=gte.${startDate.toISOString()}&select=created_at,total_amount&order=created_at.asc`
+    
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      console.error('❌ Error fetching revenue data:', response.status)
+      return []
+    }
+    
+    const orders = await response.json()
+    
+    // Group by date
+    const revenueByDate: Record<string, number> = {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    orders.forEach((order: any) => {
+      const date = new Date(order.created_at).toLocaleDateString()
+      revenueByDate[date] = (revenueByDate[date] || 0) + parseFloat(order.total_amount)
+    })
+    
+    return Object.entries(revenueByDate).map(([date, revenue]) => ({
+      date,
+      revenue: Math.round(revenue * 100) / 100
+    }))
+  } catch {
+    console.error('❌ Error in getRevenueByDate')
+    return []
+  }
+}
+
+export async function getPopularItems(limit: number = 10) {
+  try {
+    const headers = getAuthHeaders()
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/order_items?select=menu_item_id,quantity,menu_items(name,price)`
+    
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      console.error('❌ Error fetching popular items:', response.status)
+      return []
+    }
+    
+    const orderItems = await response.json()
+    
+    // Aggregate by menu item
+    const itemStats: Record<string, { name: string; quantity: number; revenue: number }> = {}
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    orderItems.forEach((item: any) => {
+      const itemId = item.menu_item_id
+      const itemName = item.menu_items?.name || 'Unknown Item'
+      const itemPrice = parseFloat(item.menu_items?.price || 0)
+      const quantity = item.quantity
+      
+      if (!itemStats[itemId]) {
+        itemStats[itemId] = { name: itemName, quantity: 0, revenue: 0 }
+      }
+      
+      itemStats[itemId].quantity += quantity
+      itemStats[itemId].revenue += itemPrice * quantity
+    })
+    
+    // Sort by quantity and limit
+    return Object.values(itemStats)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, limit)
+      .map(item => ({
+        ...item,
+        revenue: Math.round(item.revenue * 100) / 100
+      }))
+  } catch {
+    console.error('❌ Error in getPopularItems')
+    return []
+  }
+}
+
+export async function getPeakHours() {
+  try {
+    const headers = getAuthHeaders()
+    
+    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=created_at`
+    
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(5000)
+    })
+    
+    if (!response.ok) {
+      console.error('❌ Error fetching peak hours:', response.status)
+      return []
+    }
+    
+    const orders = await response.json()
+    
+    // Group by hour
+    const ordersByHour: Record<number, number> = {}
+    for (let i = 0; i < 24; i++) {
+      ordersByHour[i] = 0
+    }
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    orders.forEach((order: any) => {
+      const hour = new Date(order.created_at).getHours()
+      ordersByHour[hour]++
+    })
+    
+    return Object.entries(ordersByHour).map(([hour, count]) => ({
+      hour: `${hour}:00`,
+      orders: count
+    }))
+  } catch {
+    console.error('❌ Error in getPeakHours')
+    return []
+  }
+}
