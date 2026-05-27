@@ -174,6 +174,9 @@ export default function KitchenDisplayPage() {
       console.log('✅ Status updated successfully')
       alert(`Order status updated to ${newStatus}!`)
       
+      // Force page reload to refresh UI
+      window.location.reload()
+      
       // Send email notification if order is ready for pickup
       if (newStatus === 'completed') {
         const order = orders.find(o => o.id === orderId)
