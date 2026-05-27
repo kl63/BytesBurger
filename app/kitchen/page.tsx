@@ -143,8 +143,7 @@ export default function KitchenDisplayPage() {
       
       const headers: Record<string, string> = {
         'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
+        'Content-Type': 'application/json'
       }
       
       if (session?.access_token) {
@@ -172,8 +171,7 @@ export default function KitchenDisplayPage() {
         return
       }
       
-      const data = await response.json()
-      console.log('✅ Status updated successfully:', data)
+      console.log('✅ Status updated successfully')
       alert(`Order status updated to ${newStatus}!`)
       
       // Send email notification if order is ready for pickup
