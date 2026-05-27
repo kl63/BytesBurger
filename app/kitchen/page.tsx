@@ -127,20 +127,54 @@ export default function KitchenDisplayPage() {
     try {
       console.log('🔄 Updating order status:', orderId, 'to', newStatus)
       
-      // Use Supabase client for authenticated requests
+      // Get session token for authenticated request
       const supabase = createClient()
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId)
-
-      if (error) {
-        console.error('❌ Failed to update status:', error.message)
-        alert(`Failed to update order status: ${error.message}\n\nMake sure you're logged in as an admin.`)
+      let session = null
+      try {
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session timeout')), 2000)
+        )
+        const result = await Promise.race([sessionPromise, timeoutPromise]) as { data?: { session: { access_token?: string } | null } }
+        session = result?.data?.session
+      } catch {
+        console.log('⚠️ Session fetch timeout, using anon key')
+      }
+      
+      const headers: Record<string, string> = {
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      }
+      
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+        console.log('🔑 Using user session token for order update')
+      } else {
+        headers['Authorization'] = `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+        console.log('🔓 Using anonymous key for order update')
+      }
+      
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`
+      
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      console.log('Update response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Failed to update status:', response.status, errorText)
+        alert(`Failed to update order status: ${response.status}\n\n${errorText}`)
         return
       }
-
-      console.log('✅ Status updated successfully')
+      
+      const data = await response.json()
+      console.log('✅ Status updated successfully:', data)
+      alert(`Order status updated to ${newStatus}!`)
       
       // Send email notification if order is ready for pickup
       if (newStatus === 'completed') {
@@ -163,9 +197,10 @@ export default function KitchenDisplayPage() {
       }
       
       // Refresh orders
-      fetchOrders()
+      await fetchOrders()
     } catch (error) {
       console.error('Error updating order status:', error)
+      alert(`Error: ${error}`)
     }
   }
 
