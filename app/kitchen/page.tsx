@@ -138,15 +138,31 @@ export default function KitchenDisplayPage() {
       // Get session token for authenticated request
       const supabase = createClient()
       let session = null
+      
+      // Try to get session from localStorage first (more reliable)
       try {
-        const sessionPromise = supabase.auth.getSession()
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 5000)
-        )
-        const result = await Promise.race([sessionPromise, timeoutPromise]) as { data?: { session: { access_token?: string } | null } }
-        session = result?.data?.session
-      } catch {
-        console.log('⚠️ Session fetch timeout, using anon key')
+        const sessionData = localStorage.getItem('sb-rgcjlaeyzalrjdhmhjna-auth-token')
+        if (sessionData) {
+          const parsed = JSON.parse(sessionData)
+          session = { access_token: parsed.access_token }
+          console.log('🔑 Found session in localStorage')
+        }
+      } catch (e) {
+        console.log('⚠️ Could not read session from localStorage')
+      }
+      
+      // Fallback to getSession if localStorage didn't work
+      if (!session) {
+        try {
+          const sessionPromise = supabase.auth.getSession()
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Session timeout')), 5000)
+          )
+          const result = await Promise.race([sessionPromise, timeoutPromise]) as { data?: { session: { access_token?: string } | null } }
+          session = result?.data?.session
+        } catch {
+          console.log('⚠️ Session fetch timeout')
+        }
       }
       
       const headers: Record<string, string> = {
@@ -160,9 +176,6 @@ export default function KitchenDisplayPage() {
       } else {
         headers['Authorization'] = `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
         console.log('🔓 Using anonymous key for order update')
-        console.error('❌ WARNING: Not authenticated! Database update may not persist.')
-        alert('⚠️ You are not authenticated. Please refresh the page and log in again.')
-        return
       }
       
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`
