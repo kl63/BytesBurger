@@ -139,30 +139,15 @@ export default function KitchenDisplayPage() {
       const supabase = createClient()
       let session = null
       
-      // Try to get session from localStorage first (more reliable)
+      // Try to get session from Supabase client (no timeout)
       try {
-        const sessionData = localStorage.getItem('sb-rgcjlaeyzalrjdhmhjna-auth-token')
-        if (sessionData) {
-          const parsed = JSON.parse(sessionData)
-          session = { access_token: parsed.access_token }
-          console.log('🔑 Found session in localStorage')
+        const { data: { session: sessionData } } = await supabase.auth.getSession()
+        session = sessionData
+        if (session) {
+          console.log('🔑 Got session from Supabase client')
         }
       } catch (e) {
-        console.log('⚠️ Could not read session from localStorage')
-      }
-      
-      // Fallback to getSession if localStorage didn't work
-      if (!session) {
-        try {
-          const sessionPromise = supabase.auth.getSession()
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Session timeout')), 5000)
-          )
-          const result = await Promise.race([sessionPromise, timeoutPromise]) as { data?: { session: { access_token?: string } | null } }
-          session = result?.data?.session
-        } catch {
-          console.log('⚠️ Session fetch timeout')
-        }
+        console.log('⚠️ Could not get session from Supabase client:', e)
       }
       
       const headers: Record<string, string> = {
