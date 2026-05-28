@@ -141,7 +141,7 @@ export default function KitchenDisplayPage() {
       try {
         const sessionPromise = supabase.auth.getSession()
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 2000)
+          setTimeout(() => reject(new Error('Session timeout')), 5000)
         )
         const result = await Promise.race([sessionPromise, timeoutPromise]) as { data?: { session: { access_token?: string } | null } }
         session = result?.data?.session
@@ -160,6 +160,9 @@ export default function KitchenDisplayPage() {
       } else {
         headers['Authorization'] = `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
         console.log('🔓 Using anonymous key for order update')
+        console.error('❌ WARNING: Not authenticated! Database update may not persist.')
+        alert('⚠️ You are not authenticated. Please refresh the page and log in again.')
+        return
       }
       
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`
