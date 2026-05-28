@@ -174,10 +174,8 @@ export default function KitchenDisplayPage() {
       console.log('✅ Status updated successfully')
       alert(`Order status updated to ${newStatus}!`)
       
-      // Update local state immediately - this will move the order to the correct section
-      setOrders(orders.map(o => 
-        o.id === orderId ? { ...o, status: newStatus } : o
-      ))
+      // Force page reload to show updated status
+      window.location.reload()
       
       // Send email notification if order is ready for pickup
       if (newStatus === 'completed') {
