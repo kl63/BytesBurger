@@ -172,7 +172,6 @@ export default function KitchenDisplayPage() {
       }
       
       console.log('✅ Status updated successfully')
-      alert(`Order status updated to ${newStatus}!`)
       
       // Update local state to reflect the change
       setOrders(orders.map(o => 
