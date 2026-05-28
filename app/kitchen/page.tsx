@@ -139,10 +139,14 @@ export default function KitchenDisplayPage() {
       const supabase = createClient()
       let session = null
       
-      // Try to get session from Supabase client (no timeout)
+      // Try to get session from Supabase client with longer timeout for Vercel
       try {
-        const { data: { session: sessionData } } = await supabase.auth.getSession()
-        session = sessionData
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session timeout')), 10000)
+        )
+        const result = await Promise.race([sessionPromise, timeoutPromise]) as { data?: { session: { access_token?: string } | null } }
+        session = result?.data?.session
         if (session) {
           console.log('🔑 Got session from Supabase client')
         }
