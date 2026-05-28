@@ -254,10 +254,8 @@ export default function KitchenDisplayPage() {
               if (newOrder) {
                 handleNewOrder(newOrder.id)
               }
-            } else {
-              // For updates, just refresh the list
-              fetchOrders()
             }
+            // Don't refresh on UPDATE - we handle it locally
           }
         )
         .subscribe()
