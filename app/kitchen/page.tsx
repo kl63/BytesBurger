@@ -182,9 +182,15 @@ export default function KitchenDisplayPage() {
       console.log('✅ Status updated successfully')
       
       // Update local state to reflect the change
-      setOrders(orders.map(o => 
-        o.id === orderId ? { ...o, status: newStatus } : o
-      ))
+      if (newStatus === 'completed') {
+        // Remove completed orders from the queue
+        setOrders(orders.filter(o => o.id !== orderId))
+      } else {
+        // Update status for other status changes
+        setOrders(orders.map(o => 
+          o.id === orderId ? { ...o, status: newStatus } : o
+        ))
+      }
       
       // Send email notification if order is ready for pickup
       if (newStatus === 'completed') {
