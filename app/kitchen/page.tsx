@@ -174,8 +174,10 @@ export default function KitchenDisplayPage() {
       console.log('✅ Status updated successfully')
       alert(`Order status updated to ${newStatus}!`)
       
-      // Force page reload to show updated status
-      window.location.reload()
+      // Update local state to reflect the change
+      setOrders(orders.map(o => 
+        o.id === orderId ? { ...o, status: newStatus } : o
+      ))
       
       // Send email notification if order is ready for pickup
       if (newStatus === 'completed') {
@@ -407,6 +409,7 @@ export default function KitchenDisplayPage() {
               <div className="grid grid-cols-2 gap-3">
                 {order.status === 'pending' && (
                   <Button
+                    type="button"
                     onClick={() => updateOrderStatus(order.id, 'preparing')}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 text-lg"
                   >
@@ -415,6 +418,7 @@ export default function KitchenDisplayPage() {
                 )}
                 {order.status === 'preparing' && (
                   <Button
+                    type="button"
                     onClick={() => updateOrderStatus(order.id, 'completed')}
                     className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg col-span-2"
                   >
