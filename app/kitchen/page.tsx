@@ -230,9 +230,10 @@ export default function KitchenDisplayPage() {
     fetchOrders()
 
     // Poll for new orders every 3 seconds (fallback for realtime)
-    const pollInterval = setInterval(() => {
-      checkForNewOrders()
-    }, 3000)
+    // Disabled to prevent overwriting local state updates
+    // const pollInterval = setInterval(() => {
+    //   checkForNewOrders()
+    // }, 3000)
 
     // Try to set up realtime subscription (optional enhancement)
     try {
@@ -261,12 +262,14 @@ export default function KitchenDisplayPage() {
         .subscribe()
 
       return () => {
-        clearInterval(pollInterval)
+        // clearInterval(pollInterval)
         supabase.removeChannel(channel)
       }
     } catch (error) {
-      console.error('Realtime setup failed, using polling only:', error)
-      return () => clearInterval(pollInterval)
+      console.error('Realtime setup failed:', error)
+      return () => {
+        // clearInterval(pollInterval)
+      }
     }
     // Dependencies intentionally omitted - functions are stable and don't need re-subscription
     // eslint-disable-next-line react-hooks/exhaustive-deps
