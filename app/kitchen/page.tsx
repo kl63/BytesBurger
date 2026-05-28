@@ -30,6 +30,7 @@ export default function KitchenDisplayPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [currentTime, setCurrentTime] = useState(new Date())
   const [newOrderModal, setNewOrderModal] = useState<Order | null>(null)
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set())
@@ -124,7 +125,14 @@ export default function KitchenDisplayPage() {
   }
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
+    // Prevent multiple simultaneous updates
+    if (updatingOrderId === orderId) {
+      console.log('⚠️ Already updating this order, skipping')
+      return
+    }
+
     try {
+      setUpdatingOrderId(orderId)
       console.log('🔄 Updating order status:', orderId, 'to', newStatus)
       
       // Get session token for authenticated request
@@ -197,12 +205,10 @@ export default function KitchenDisplayPage() {
             .catch(err => console.error('Email send failed:', err))
         }
       }
-      
-      // Refresh orders
-      await fetchOrders()
     } catch (error) {
       console.error('Error updating order status:', error)
-      alert(`Error: ${error}`)
+    } finally {
+      setUpdatingOrderId(null)
     }
   }
 
@@ -410,18 +416,20 @@ export default function KitchenDisplayPage() {
                   <Button
                     type="button"
                     onClick={() => updateOrderStatus(order.id, 'preparing')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 text-lg"
+                    disabled={updatingOrderId === order.id}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 text-lg disabled:opacity-50"
                   >
-                    Start Cooking
+                    {updatingOrderId === order.id ? 'Updating...' : 'Start Cooking'}
                   </Button>
                 )}
                 {order.status === 'preparing' && (
                   <Button
                     type="button"
                     onClick={() => updateOrderStatus(order.id, 'completed')}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg col-span-2"
+                    disabled={updatingOrderId === order.id}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg col-span-2 disabled:opacity-50"
                   >
-                    Mark Ready
+                    {updatingOrderId === order.id ? 'Updating...' : 'Mark Ready'}
                   </Button>
                 )}
               </div>
