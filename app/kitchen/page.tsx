@@ -171,6 +171,8 @@ export default function KitchenDisplayPage() {
       })
       
       console.log('Update response status:', response.status)
+      console.log('Update URL:', url)
+      console.log('Update body:', JSON.stringify({ status: newStatus }))
       
       if (!response.ok) {
         const errorText = await response.text()
