@@ -135,54 +135,18 @@ export default function KitchenDisplayPage() {
       setUpdatingOrderId(orderId)
       console.log('🔄 Updating order status:', orderId, 'to', newStatus)
       
-      // Get session token for authenticated request
-      const supabase = createClient()
-      let session = null
-      
-      // Try to get session from Supabase client with longer timeout for Vercel
-      try {
-        const sessionPromise = supabase.auth.getSession()
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session timeout')), 10000)
-        )
-        const result = await Promise.race([sessionPromise, timeoutPromise]) as { data?: { session: { access_token?: string } | null } }
-        session = result?.data?.session
-        if (session) {
-          console.log('🔑 Got session from Supabase client')
-        }
-      } catch (e) {
-        console.log('⚠️ Could not get session from Supabase client:', e)
-      }
-      
-      const headers: Record<string, string> = {
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        'Content-Type': 'application/json'
-      }
-      
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`
-        console.log('🔑 Using user session token for order update')
-      } else {
-        headers['Authorization'] = `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-        console.log('🔓 Using anonymous key for order update')
-      }
-      
-      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`
-      
-      const response = await fetch(url, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ status: newStatus })
+      // Use server-side API route for reliable updates (bypasses Vercel session timeout)
+      const response = await fetch('/api/kitchen/update-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, newStatus })
       })
       
-      console.log('Update response status:', response.status)
-      console.log('Update URL:', url)
-      console.log('Update body:', JSON.stringify({ status: newStatus }))
+      const result = await response.json()
       
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ Failed to update status:', response.status, errorText)
-        alert(`Failed to update order status: ${response.status}\n\n${errorText}`)
+        console.error('❌ Failed to update status:', result.error)
+        alert(`Failed to update order status: ${result.error}`)
         return
       }
       
@@ -220,6 +184,7 @@ export default function KitchenDisplayPage() {
       }
     } catch (error) {
       console.error('Error updating order status:', error)
+      alert(`Error: ${error}`)
     } finally {
       setUpdatingOrderId(null)
     }
