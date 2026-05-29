@@ -82,11 +82,11 @@ export default function AccountPage() {
 
           <h1 className="text-5xl md:text-6xl font-black mb-4">
             <span className="bg-gradient-to-r from-orange-400 via-red-500 to-orange-500 bg-clip-text text-transparent">
-              My Account
+              Welcome, {user.user_metadata?.full_name || user.email?.split('@')[0]}!
             </span>
           </h1>
           <p className="text-xl text-gray-300 mb-8">
-            Welcome back, {user.email?.split('@')[0]}!
+            Manage your orders and profile
           </p>
         </motion.div>
 

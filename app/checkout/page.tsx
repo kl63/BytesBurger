@@ -24,8 +24,8 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState('')
   const [step, setStep] = useState<'info' | 'payment'>('info')
   const [formData, setFormData] = useState({
-    customer_name: '',
-    customer_email: '',
+    customer_name: user?.user_metadata?.full_name || '',
+    customer_email: user?.email || '',
     customer_phone: '',
     notes: '',
   })
@@ -366,7 +366,11 @@ export default function CheckoutPage() {
                     onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                     placeholder="John Doe"
+                    readOnly={!!user}
                   />
+                  {user && (
+                    <p className="text-xs text-gray-500 mt-1">Auto-filled from your account</p>
+                  )}
                 </div>
 
                 {/* Email */}
@@ -382,7 +386,11 @@ export default function CheckoutPage() {
                     onChange={(e) => setFormData({ ...formData, customer_email: e.target.value })}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                     placeholder="john@example.com"
+                    readOnly={!!user}
                   />
+                  {user && (
+                    <p className="text-xs text-gray-500 mt-1">Auto-filled from your account</p>
+                  )}
                 </div>
 
                 {/* Phone */}
