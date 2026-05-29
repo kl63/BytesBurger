@@ -483,24 +483,20 @@ export async function getAllOrders() {
 
 export async function updateOrderStatus(orderId: string, status: string) {
   try {
-    const headers = await getAuthHeaders()
-    headers['Prefer'] = 'return=representation'
-    
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`
-    
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ status, updated_at: new Date().toISOString() }),
-      signal: AbortSignal.timeout(5000)
+    // Use server-side API route to bypass client-side session timeout
+    const response = await fetch('/api/admin/update-order-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, status })
     })
     
     if (!response.ok) {
-      throw new Error(`Failed to update order status: ${response.status}`)
+      const result = await response.json()
+      throw new Error(result.error || `Failed to update order status: ${response.status}`)
     }
     
-    const data = await response.json()
-    return Array.isArray(data) ? data[0] : data
+    const result = await response.json()
+    return Array.isArray(result.data) ? result.data[0] : result.data
   } catch (error) {
     console.error('❌ Error in updateOrderStatus:', error)
     throw error
