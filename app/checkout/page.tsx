@@ -220,7 +220,7 @@ export default function CheckoutPage() {
         }
       }
       
-      // Send order confirmation email
+      // Send order confirmation email (non-blocking)
       console.log('📧 Sending confirmation email to:', order.customer_email)
       sendOrderConfirmationEmail({
         orderNumber: order.order_number,
@@ -236,7 +236,7 @@ export default function CheckoutPage() {
         total: order.total_amount,
       })
         .then(result => console.log('✅ Email sent successfully:', result))
-        .catch(err => console.error('❌ Email send failed:', err))
+        .catch(err => console.error('❌ Email send failed (non-blocking):', err))
       
       // Store order data in localStorage as workaround
       const orderWithItems = {

@@ -22,12 +22,13 @@ export async function sendOrderConfirmationEmail(orderData: {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to send confirmation email')
+      console.error('❌ Email API returned error:', response.status)
+      return null
     }
 
     return await response.json()
   } catch (error) {
-    console.error('Error sending confirmation email:', error)
+    console.error('❌ Error sending confirmation email (non-blocking):', error)
     return null
   }
 }
