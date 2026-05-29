@@ -136,22 +136,17 @@ export async function getSessionToken(): Promise<string | null> {
 
 export async function getAllMenuItems() {
   try {
-    const headers = await getAuthHeaders()
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_items?select=*,category:menu_categories(*)&order=created_at.desc`
-    
-    const response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000)
-    })
+    // Use server-side API route to bypass client-side session timeout
+    const response = await fetch('/api/admin/menu-items')
     
     if (!response.ok) {
       console.error('❌ Error fetching menu items:', response.status)
       return []
     }
     
-    const data = await response.json()
-    console.log('✅ Fetched menu items:', data?.length || 0)
-    return data || []
+    const result = await response.json()
+    console.log('✅ Fetched menu items:', result.data?.length || 0)
+    return result.data || []
   } catch {
     console.error('❌ Error in getAllMenuItems')
     return []
@@ -325,22 +320,16 @@ export async function getAdminStats() {
 
 export async function getAllCategories() {
   try {
-    const headers = await getAuthHeaders()
-    
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/menu_categories?select=*&order=name.asc`
-    
-    const response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000)
-    })
+    // Use server-side API route to bypass client-side session timeout
+    const response = await fetch('/api/admin/categories')
     
     if (!response.ok) {
       console.error('❌ Error fetching categories:', response.status)
       return []
     }
     
-    const data = await response.json()
-    return data || []
+    const result = await response.json()
+    return result.data || []
   } catch {
     console.error('❌ Error in getAllCategories')
     return []
@@ -476,22 +465,16 @@ export async function togglePopularItem(id: string, isPopular: boolean) {
 
 export async function getAllOrders() {
   try {
-    const headers = await getAuthHeaders()
-    
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=*&order=created_at.desc`
-    
-    const response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000)
-    })
+    // Use server-side API route to bypass client-side session timeout
+    const response = await fetch('/api/admin/orders')
     
     if (!response.ok) {
       console.error('❌ Error fetching all orders:', response.status)
       return []
     }
     
-    const data = await response.json()
-    return data || []
+    const result = await response.json()
+    return result.data || []
   } catch {
     console.error('❌ Error in getAllOrders')
     return []
