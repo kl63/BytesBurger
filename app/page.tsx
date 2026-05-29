@@ -20,25 +20,29 @@ const categoryEmojis: Record<string, string> = {
 export default function Home() {
   const [popularItems, setPopularItems] = useState<MenuItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [isOpen, setIsOpen] = useState(false)
 
-  // Fetch popular items on mount
+  // Fetch popular items and restaurant status on mount
   useEffect(() => {
-    async function fetchPopularItems() {
+    async function fetchData() {
       try {
-        const items = await getPopularMenuItems()
+        const [items, statusResponse] = await Promise.all([
+          getPopularMenuItems(),
+          fetch('/api/restaurant-status')
+        ])
+        
         setPopularItems(items.slice(0, 3)) // Show only 3 items
+        
+        const statusData = await statusResponse.json()
+        setIsOpen(statusData.isOpen)
       } catch (error) {
-        console.error('Error fetching popular items:', error)
+        console.error('Error fetching data:', error)
       } finally {
         setLoading(false)
       }
     }
-    fetchPopularItems()
+    fetchData()
   }, [])
-
-  // Check if restaurant is open (10 AM - 10 PM)
-  const currentHour = new Date().getHours()
-  const isOpen = currentHour >= 10 && currentHour < 22
 
   return (
     <div className="flex flex-col">
