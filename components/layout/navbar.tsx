@@ -86,12 +86,16 @@ export function Navbar() {
                 <Link href="/account" className="text-sm text-gray-300 hover:text-white transition-colors">
                   {user.user_metadata?.full_name || user.email}
                 </Link>
-                {isAdmin && (
+                {isAdmin ? (
                   <Link href="/admin">
                     <span className="text-xs bg-orange-500/20 text-orange-500 px-2 py-1 rounded-full font-bold border border-orange-500/30">
                       Admin
                     </span>
                   </Link>
+                ) : (
+                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full font-bold border border-blue-500/30">
+                    Customer
+                  </span>
                 )}
                 <Button 
                   variant="ghost" 
@@ -164,12 +168,16 @@ export function Navbar() {
                     <div className="text-sm text-gray-300 py-2 px-3 bg-gray-800/50 rounded-lg">
                       Signed in as: <span className="font-bold text-white">{user.user_metadata?.full_name || user.email}</span>
                     </div>
-                    {isAdmin && (
+                    {isAdmin ? (
                       <Button asChild variant="outline" size="sm">
                         <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
                           <span className="text-orange-500">Admin Panel</span>
                         </Link>
                       </Button>
+                    ) : (
+                      <div className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full font-bold border border-blue-500/30 text-center">
+                        Customer
+                      </div>
                     )}
                     <div className="flex gap-2">
                       <Button asChild size="sm" className="flex-1">
