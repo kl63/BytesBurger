@@ -546,6 +546,14 @@ export default function AdminPage() {
                 <span className="font-bold">Go to Kitchen</span>
               </button>
             </Link>
+
+            {/* Go to Kiosk Button */}
+            <Link href="/kiosk" className="w-full">
+              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl hover:scale-105">
+                <ShoppingBag className="w-5 h-5" />
+                <span className="font-bold">Go to Kiosk</span>
+              </button>
+            </Link>
           </nav>
         </motion.aside>
 

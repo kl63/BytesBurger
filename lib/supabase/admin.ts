@@ -515,6 +515,8 @@ export async function getRevenueByDate(days: number = 7) {
     
     const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?status=eq.completed&created_at=gte.${startDate.toISOString()}&select=created_at,total_amount&order=created_at.asc`
     
+    console.log('📊 Fetching revenue data for last', days, 'days:', url)
+    
     const response = await fetch(url, {
       headers,
       signal: AbortSignal.timeout(5000)
@@ -526,6 +528,7 @@ export async function getRevenueByDate(days: number = 7) {
     }
     
     const orders = await response.json()
+    console.log('📊 Revenue data received:', orders.length, 'orders')
     
     // Group by date
     const revenueByDate: Record<string, number> = {}
