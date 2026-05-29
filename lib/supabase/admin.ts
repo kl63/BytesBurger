@@ -509,39 +509,16 @@ export async function updateOrderStatus(orderId: string, status: string) {
 
 export async function getRevenueByDate(days: number = 7) {
   try {
-    const headers = getAuthHeaders()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
-    
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?status=eq.completed&created_at=gte.${startDate.toISOString()}&select=created_at,total_amount&order=created_at.asc`
-    
-    console.log('📊 Fetching revenue data for last', days, 'days:', url)
-    
-    const response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000)
-    })
+    const response = await fetch(`/api/admin/revenue?days=${days}`)
     
     if (!response.ok) {
       console.error('❌ Error fetching revenue data:', response.status)
       return []
     }
     
-    const orders = await response.json()
-    console.log('📊 Revenue data received:', orders.length, 'orders')
-    
-    // Group by date
-    const revenueByDate: Record<string, number> = {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    orders.forEach((order: any) => {
-      const date = new Date(order.created_at).toLocaleDateString()
-      revenueByDate[date] = (revenueByDate[date] || 0) + parseFloat(order.total_amount)
-    })
-    
-    return Object.entries(revenueByDate).map(([date, revenue]) => ({
-      date,
-      revenue: Math.round(revenue * 100) / 100
-    }))
+    const data = await response.json()
+    console.log('📊 Revenue data received:', data.length, 'entries')
+    return data
   } catch {
     console.error('❌ Error in getRevenueByDate')
     return []
@@ -550,48 +527,16 @@ export async function getRevenueByDate(days: number = 7) {
 
 export async function getPopularItems(limit: number = 10) {
   try {
-    const headers = getAuthHeaders()
-    
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/order_items?select=menu_item_id,quantity,menu_items(name,price)`
-    
-    const response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000)
-    })
+    const response = await fetch(`/api/admin/popular-items?limit=${limit}`)
     
     if (!response.ok) {
       console.error('❌ Error fetching popular items:', response.status)
       return []
     }
     
-    const orderItems = await response.json()
-    
-    // Aggregate by menu item
-    const itemStats: Record<string, { name: string; quantity: number; revenue: number }> = {}
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    orderItems.forEach((item: any) => {
-      const itemId = item.menu_item_id
-      const itemName = item.menu_items?.name || 'Unknown Item'
-      const itemPrice = parseFloat(item.menu_items?.price || 0)
-      const quantity = item.quantity
-      
-      if (!itemStats[itemId]) {
-        itemStats[itemId] = { name: itemName, quantity: 0, revenue: 0 }
-      }
-      
-      itemStats[itemId].quantity += quantity
-      itemStats[itemId].revenue += itemPrice * quantity
-    })
-    
-    // Sort by quantity and limit
-    return Object.values(itemStats)
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, limit)
-      .map(item => ({
-        ...item,
-        revenue: Math.round(item.revenue * 100) / 100
-      }))
+    const data = await response.json()
+    console.log('📊 Popular items received:', data.length, 'items')
+    return data
   } catch {
     console.error('❌ Error in getPopularItems')
     return []
@@ -600,38 +545,16 @@ export async function getPopularItems(limit: number = 10) {
 
 export async function getPeakHours() {
   try {
-    const headers = getAuthHeaders()
-    
-    const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=created_at`
-    
-    const response = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000)
-    })
+    const response = await fetch('/api/admin/peak-hours')
     
     if (!response.ok) {
       console.error('❌ Error fetching peak hours:', response.status)
       return []
     }
     
-    const orders = await response.json()
-    
-    // Group by hour
-    const ordersByHour: Record<number, number> = {}
-    for (let i = 0; i < 24; i++) {
-      ordersByHour[i] = 0
-    }
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    orders.forEach((order: any) => {
-      const hour = new Date(order.created_at).getHours()
-      ordersByHour[hour]++
-    })
-    
-    return Object.entries(ordersByHour).map(([hour, count]) => ({
-      hour: `${hour}:00`,
-      orders: count
-    }))
+    const data = await response.json()
+    console.log('📊 Peak hours received:', data.length, 'entries')
+    return data
   } catch {
     console.error('❌ Error in getPeakHours')
     return []
