@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Plus, Minus, ShoppingCart, Check, CreditCard } from 'lucide-react'
+import { X, Plus, Minus, ShoppingCart, Check, CreditCard, ShoppingBag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getAllMenuItems, getAllCategories } from '@/lib/supabase/admin'
 import { createOrder } from '@/lib/supabase/orders'
 import { Elements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import { PaymentForm } from '@/components/stripe/PaymentForm'
+import { useAuth } from '@/contexts/AuthContext'
 import type { MenuItem, MenuCategory } from '@/types'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -23,6 +25,8 @@ interface OrderConfirmation {
 }
 
 export default function KioskPage() {
+  const { user, isAdmin, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -36,6 +40,13 @@ export default function KioskPage() {
   const [clientSecret, setClientSecret] = useState('')
   const [paymentError, setPaymentError] = useState('')
   const [addedItem, setAddedItem] = useState<string | null>(null)
+
+  // Redirect if not authenticated or not admin
+  useEffect(() => {
+    if (!authLoading && (!user || !isAdmin)) {
+      router.push('/login')
+    }
+  }, [user, isAdmin, authLoading, router])
 
   // Load menu data
   useEffect(() => {
@@ -53,10 +64,10 @@ export default function KioskPage() {
   // Reset inactivity timer on any interaction
   useEffect(() => {
     const resetTimer = () => setLastActivity(Date.now())
-    
+
     window.addEventListener('click', resetTimer)
     window.addEventListener('touchstart', resetTimer)
-    
+
     return () => {
       window.removeEventListener('click', resetTimer)
       window.removeEventListener('touchstart', resetTimer)
@@ -80,6 +91,23 @@ export default function KioskPage() {
       setIsCartOpen(false)
     }
   }, [currentTime, lastActivity])
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+        <div className="text-center">
+          <ShoppingBag className="w-16 h-16 text-orange-500 animate-pulse mx-auto mb-4" />
+          <p className="text-gray-400 text-lg">Loading kiosk...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show unauthorized state
+  if (!user || !isAdmin) {
+    return null // Will redirect
+  }
 
   // Filter items by category
   const filteredItems = selectedCategory === 'all'

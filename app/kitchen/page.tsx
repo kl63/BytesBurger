@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Clock, CheckCircle, ChefHat, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Order {
   id: string
@@ -27,6 +29,8 @@ interface OrderItem {
 }
 
 export default function KitchenDisplayPage() {
+  const { user, isAdmin, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [currentTime, setCurrentTime] = useState(new Date())
   const [newOrderModal, setNewOrderModal] = useState<Order | null>(null)
@@ -46,12 +50,12 @@ export default function KitchenDisplayPage() {
       const response = await fetch(url, { headers })
       if (response.ok) {
         const data = await response.json()
-        
+
         // Initialize tracking on first load
         if (lastOrderIdsRef.current.size === 0) {
           data.forEach((order: Order) => lastOrderIdsRef.current.add(order.id))
         }
-        
+
         setOrders(data)
       }
     } catch (error) {
@@ -59,64 +63,33 @@ export default function KitchenDisplayPage() {
     }
   }
 
-  async function checkForNewOrders() {
-    try {
-      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=id,order_number,customer_name,customer_email,status,created_at,notes,items:order_items(id,quantity,customizations,menu_item:menu_items(name))&status=in.(pending,preparing)&order=created_at.asc`
-      const headers = {
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-      }
-
-      const response = await fetch(url, { headers })
-      if (response.ok) {
-        const data = await response.json()
-        
-        // Find truly new orders by comparing IDs
-        const newOrders = data.filter((order: Order) => 
-          !lastOrderIdsRef.current.has(order.id)
-        )
-        
-        if (newOrders.length > 0) {
-          console.log('NEW ORDER DETECTED!', newOrders[0].order_number)
-          // Show popup for the newest order
-          handleNewOrder(newOrders[0].id)
-          
-          // Update tracking
-          newOrders.forEach((order: Order) => lastOrderIdsRef.current.add(order.id))
-        }
-        
-        // Clean up completed/cancelled orders from tracking
-        const currentIds = new Set(data.map((order: Order) => order.id))
-        lastOrderIdsRef.current.forEach(id => {
-          if (!currentIds.has(id)) {
-            lastOrderIdsRef.current.delete(id)
-          }
-        })
-        
-        setOrders(data)
-      }
-    } catch (error) {
-      console.error('Error checking for new orders:', error)
-    }
-  }
-
   async function handleNewOrder(orderId: string) {
     try {
       // Play notification sound
       playNotificationSound()
-      
-      // Fetch full order details
-      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?select=id,order_number,customer_name,customer_email,status,created_at,notes,items:order_items(id,quantity,customizations,menu_item:menu_items(name))&id=eq.${orderId}`
+
+      // Fetch the new order details
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}&select=id,order_number,customer_name,customer_email,status,created_at,notes,items:order_items(id,quantity,customizations,menu_item:menu_items(name))`
       const headers = {
         'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
       }
-      
+
       const response = await fetch(url, { headers })
       if (response.ok) {
         const data = await response.json()
-        if (data && data.length > 0) {
-          setNewOrderModal(data[0])
+        if (data.length > 0) {
+          const newOrder = data[0]
+          setOrders(prev => [...prev, newOrder])
+          lastOrderIdsRef.current.add(newOrder.id)
+
+          // Show modal for new order
+          setNewOrderModal(newOrder)
+
+          // Auto-hide modal after 5 seconds
+          setTimeout(() => {
+            setNewOrderModal(null)
+          }, 5000)
         }
       }
     } catch (error) {
@@ -134,35 +107,35 @@ export default function KitchenDisplayPage() {
     try {
       setUpdatingOrderId(orderId)
       console.log('🔄 Updating order status:', orderId, 'to', newStatus)
-      
+
       // Use server-side API route for reliable updates (bypasses Vercel session timeout)
       const response = await fetch('/api/kitchen/update-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, newStatus })
       })
-      
+
       const result = await response.json()
-      
+
       if (!response.ok) {
         console.error('❌ Failed to update status:', result.error)
         alert(`Failed to update order status: ${result.error}`)
         return
       }
-      
+
       console.log('✅ Status updated successfully')
-      
+
       // Update local state to reflect the change
       if (newStatus === 'completed') {
         // Remove completed orders from the queue
         setOrders(orders.filter(o => o.id !== orderId))
       } else {
         // Update status for other status changes
-        setOrders(orders.map(o => 
+        setOrders(orders.map(o =>
           o.id === orderId ? { ...o, status: newStatus } : o
         ))
       }
-      
+
       // Send email notification if order is ready for pickup
       if (newStatus === 'completed') {
         const order = orders.find(o => o.id === orderId)
@@ -198,8 +171,26 @@ export default function KitchenDisplayPage() {
     }
   }
 
+  function getTimeSince(createdAt: string) {
+    const created = new Date(createdAt)
+    const now = new Date()
+    const diffMs = now.getTime() - created.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins === 1) return '1 min'
+    return `${diffMins} mins`
+  }
+
+  // Redirect if not authenticated or not admin
   useEffect(() => {
-    // Update clock every second
+    if (!authLoading && (!user || !isAdmin)) {
+      router.push('/login')
+    }
+  }, [user, isAdmin, authLoading, router])
+
+  // Update clock every second
+  useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date())
     }, 1000)
@@ -207,18 +198,16 @@ export default function KitchenDisplayPage() {
     return () => clearInterval(timer)
   }, [])
 
+  // Initial fetch and realtime subscription
   useEffect(() => {
-    // Initial fetch on mount - intentional setState in effect for data fetching
+    // Only fetch if authenticated
+    if (!user || !isAdmin) return
+
+    // Initial fetch on mount
     // eslint-disable-next-line
     fetchOrders()
 
-    // Poll for new orders every 3 seconds (fallback for realtime)
-    // Disabled to prevent overwriting local state updates
-    // const pollInterval = setInterval(() => {
-    //   checkForNewOrders()
-    // }, 3000)
-
-    // Try to set up realtime subscription (optional enhancement)
+    // Try to set up realtime subscription
     try {
       const supabase = createClient()
       const channel = supabase
@@ -232,41 +221,40 @@ export default function KitchenDisplayPage() {
           },
           async (payload) => {
             console.log('Realtime order update:', payload)
-            
+
             if (payload.eventType === 'INSERT') {
               const newOrder = payload.new as { id: string }
               if (newOrder) {
                 handleNewOrder(newOrder.id)
               }
             }
-            // Don't refresh on UPDATE - we handle it locally
           }
         )
         .subscribe()
 
       return () => {
-        // clearInterval(pollInterval)
         supabase.removeChannel(channel)
       }
     } catch (error) {
-      console.error('Realtime setup failed:', error)
-      return () => {
-        // clearInterval(pollInterval)
-      }
+      console.error('Error setting up realtime subscription:', error)
     }
-    // Dependencies intentionally omitted - functions are stable and don't need re-subscription
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [user, isAdmin])
 
-  function getTimeSince(createdAt: string) {
-    const created = new Date(createdAt)
-    const now = new Date()
-    const diffMs = now.getTime() - created.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    
-    if (diffMins < 1) return 'Just now'
-    if (diffMins === 1) return '1 min'
-    return `${diffMins} mins`
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+        <div className="text-center">
+          <ChefHat className="w-16 h-16 text-orange-500 animate-pulse mx-auto mb-4" />
+          <p className="text-gray-400 text-lg">Loading kitchen display...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show unauthorized state
+  if (!user || !isAdmin) {
+    return null // Will redirect
   }
 
   function getStatusColor(status: string) {

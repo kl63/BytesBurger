@@ -973,13 +973,13 @@ export default function AdminPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 }}
-                      className="bg-gradient-to-br from-orange-500/20 via-red-600/20 to-black border-2 border-orange-500/30 rounded-2xl p-6 hover:border-orange-500/50 transition-all"
+                      className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 hover:border-gray-600 transition-all"
                     >
                       <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-orange-500/20 rounded-xl">
-                          <TrendingUp className="w-6 h-6 text-orange-500" />
+                        <div className="p-3 bg-gray-800 rounded-xl">
+                          <TrendingUp className="w-6 h-6 text-gray-400" />
                         </div>
-                        <span className="text-xs text-orange-500 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/30">
+                        <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
                           Last {timeRange} days
                         </span>
                       </div>
@@ -995,13 +995,13 @@ export default function AdminPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 }}
-                      className="bg-gradient-to-br from-blue-500/20 via-cyan-600/20 to-black border-2 border-blue-500/30 rounded-2xl p-6 hover:border-blue-500/50 transition-all"
+                      className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 hover:border-gray-600 transition-all"
                     >
                       <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-blue-500/20 rounded-xl">
-                          <TrendingUp className="w-6 h-6 text-blue-500" />
+                        <div className="p-3 bg-gray-800 rounded-xl">
+                          <TrendingUp className="w-6 h-6 text-gray-400" />
                         </div>
-                        <span className="text-xs text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full border border-blue-500/30">
+                        <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
                           Best Seller
                         </span>
                       </div>
@@ -1019,13 +1019,13 @@ export default function AdminPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 }}
-                      className="bg-gradient-to-br from-purple-500/20 via-pink-600/20 to-black border-2 border-purple-500/30 rounded-2xl p-6 hover:border-purple-500/50 transition-all"
+                      className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 hover:border-gray-600 transition-all"
                     >
                       <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-purple-500/20 rounded-xl">
-                          <TrendingUp className="w-6 h-6 text-purple-500" />
+                        <div className="p-3 bg-gray-800 rounded-xl">
+                          <TrendingUp className="w-6 h-6 text-gray-400" />
                         </div>
-                        <span className="text-xs text-purple-500 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/30">
+                        <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
                           Busiest
                         </span>
                       </div>
@@ -1044,11 +1044,11 @@ export default function AdminPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-gradient-to-br from-gray-800 via-gray-900 to-black border-2 border-orange-500/30 rounded-2xl p-6 shadow-2xl"
+                    className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 shadow-2xl"
                   >
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-orange-500/20 rounded-lg">
-                        <TrendingUp className="w-5 h-5 text-orange-500" />
+                      <div className="p-2 bg-gray-800 rounded-lg">
+                        <TrendingUp className="w-5 h-5 text-gray-400" />
                       </div>
                       <div>
                         <h3 className="text-xl font-black text-white">Revenue Trends</h3>
@@ -1100,11 +1100,11 @@ export default function AdminPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
-                    className="bg-gradient-to-br from-gray-800 via-gray-900 to-black border-2 border-blue-500/30 rounded-2xl p-6 shadow-2xl"
+                    className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 shadow-2xl"
                   >
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-blue-500/20 rounded-lg">
-                        <TrendingUp className="w-5 h-5 text-blue-500" />
+                      <div className="p-2 bg-gray-800 rounded-lg">
+                        <TrendingUp className="w-5 h-5 text-gray-400" />
                       </div>
                       <div>
                         <h3 className="text-xl font-black text-white">Top 10 Best Sellers</h3>
@@ -1150,11 +1150,11 @@ export default function AdminPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="bg-gradient-to-br from-gray-800 via-gray-900 to-black border-2 border-purple-500/30 rounded-2xl p-6 shadow-2xl"
+                    className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 shadow-2xl"
                   >
                     <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-purple-500/20 rounded-lg">
-                        <TrendingUp className="w-5 h-5 text-purple-500" />
+                      <div className="p-2 bg-gray-800 rounded-lg">
+                        <TrendingUp className="w-5 h-5 text-gray-400" />
                       </div>
                       <div>
                         <h3 className="text-xl font-black text-white">Peak Hours Analysis</h3>
